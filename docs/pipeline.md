@@ -393,9 +393,3 @@ El pipeline se considera exitoso si:
 * es reproducible (config_hash)
 
 ---
-
-## 10) Próximos documentos
-
-1. `docs/architecture.md` — componentes, patterns, decisiones.
-2. `docs/qa_metrics.md` — definición formal de métricas, umbrales.
-3. `docs/README_public.md` — README listo para repo open-source.
