@@ -29,6 +29,8 @@ outputs/
 *.tiff
 *.tif
 *.bmp
+*.md
+
 
 # =========================
 # 🧠 OCR / PDF tooling artefacts
@@ -86,6 +88,7 @@ htmlcov/
 # =========================
 logs/
 *.log
+!docs/*.md
 
 # =========================
 # 🧠 Jupyter / notebooks
