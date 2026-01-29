@@ -1,0 +1,74 @@
+# configs/qa_thresholds.yaml
+# Umbrales y parámetros para validación QA — editable por environment/configs
+# Basado en QA Metrics (LimpiaTextos). Ajustar tras POC con corpus real.
+version: 0.1.0
+notes: "Umbrales iniciales sugeridos. Ajustar tras pruebas con 20-50 documentos."
+
+pages:
+  min_chars_per_page: 50            # página considerada "con texto" si >= este número de caracteres
+  pages_with_text_ratio_ok: 0.9     # pages_with_text_count / pages_total >= 0.9 → OK
+  pages_empty_ratio_warn: 0.1       # (pages_total - pages_with_text_count)/pages_total >= WARN
+  pages_empty_ratio_fail: 0.5       # >= FAIL
+
+chars:
+  chars_per_page_mean_min: 200      # mínimo razonable promedio de chars por página
+
+ocr:
+  ocr_used_required: false
+  ocr_confidence_mean_warn: 0.6     # re-intentar OCR / revisar
+  ocr_confidence_mean_ok: 0.7       # confianza mínima sugerida
+  ocr_confidence_mean_fail: 0.4     # falla grave
+
+tables:
+  tables_extraction_success_ratio_ok: 0.8
+  tables_extraction_success_ratio_warn: 0.6
+
+cleaning:
+  dehyphen:
+    min_left: 3
+    max_left: 30
+  line_join:
+    line_join_ratio_min: 0.01       # si < → quizá no reconstruyó nada
+    line_join_ratio_max: 0.6        # si > → unión excesiva
+  header_footer:
+    header_lines_candidate: 3
+    footer_lines_candidate: 3
+    header_footer_min_page_ratio: 0.6
+
+nlp:
+  long_sentence_token_thresh: 200
+  short_sentence_token_thresh: 2
+  short_sentences_ratio_warn: 0.1
+
+chunks:
+  min_chars_chunk: 50
+  chunks_nonempty_ratio_ok: 0.95
+  avg_chunk_tokens_min: 300
+  avg_chunk_tokens_max: 800
+
+global:
+  overall_flag:
+    fail_conditions:
+      - { pages_empty_ratio_gte: 0.5 }
+      - { ocr_used_and_confidence_lt: 0.4 }
+    review_conditions:
+      - { line_join_ratio_out_of_range: true }
+      - { tables_extraction_success_ratio_lt: 0.6 }
+
+reporting:
+  samples_per_doc: 10
+  summary_csv_columns:
+    - doc_id
+    - source_filename
+    - pages_total
+    - pages_with_text_count
+    - pages_empty_ratio
+    - ocr_used
+    - ocr_confidence_mean
+    - tables_detected_count
+    - tables_extraction_success_ratio
+    - dehyphen_joins
+    - line_joins
+    - chunks_count
+    - overall_flag
+    - processing_time_seconds
