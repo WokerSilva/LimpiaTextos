@@ -1,0 +1,130 @@
+# =========================
+# 🔒 Datos y resultados (SIEMPRE ignorar)
+# =========================
+input_pdfs/
+workspace/
+outputs/
+
+# PDFs y derivados
+*.pdf
+*.PDF
+
+# Resultados intermedios
+*.jsonl
+*.csv
+*.tsv
+*.parquet
+*.arrow
+*.feather
+
+# Texto generado
+*.txt
+*.md
+*.html
+
+# Imágenes extraídas / OCR
+*.png
+*.jpg
+*.jpeg
+*.tiff
+*.tif
+*.bmp
+
+# =========================
+# 🧠 OCR / PDF tooling artefacts
+# =========================
+*.hocr
+*.alto.xml
+*.bbox
+*.pbm
+*.ppm
+
+# OCRmyPDF temporales
+.ocrmypdf/
+ocrmypdf.log
+
+# =========================
+# 🧪 Entornos virtuales
+# =========================
+.venv/
+venv/
+env/
+ENV/
+
+# Poetry
+.poetry/
+
+# Pipenv
+Pipfile.lock
+
+# =========================
+# 🐍 Python cache
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# =========================
+# 📦 Build / packaging
+# =========================
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# =========================
+# 🧰 Testing / coverage
+# =========================
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# =========================
+# 🧾 Logs
+# =========================
+logs/
+*.log
+
+# =========================
+# 🧠 Jupyter / notebooks
+# =========================
+.ipynb_checkpoints/
+*.ipynb
+
+# =========================
+# 🧑‍💻 IDE / Editor
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# 🐳 Docker
+# =========================
+.docker/
+docker-compose.override.yml
+
+# =========================
+# 🔐 Configuración sensible
+# =========================
+.env
+.env.*
+*.secrets.yaml
+*.secrets.yml
+configs/local.yaml
+configs/private.yaml
+
+# =========================
+# 🧪 Fixtures reales (solo usar sintéticos)
+# =========================
+fixtures/real/
+samples/private/
+
+# =========================
+# 🖥️ Sistema operativo
+# =========================
+.DS_Store
+Thumbs.db

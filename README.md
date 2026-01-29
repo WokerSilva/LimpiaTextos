@@ -11,7 +11,8 @@ En muchas áreas técnicas y operativas, el conocimiento clave vive en **manuale
 
 El resultado típico es texto técnicamente extraído, pero **semánticamente roto**, lo cual afecta directamente la calidad de:
 
-* embeddings
+* la continuidad semántica
+* la calidad de embeddings
 * recuperación de contexto
 * respuestas generadas por modelos LLM
 
@@ -21,159 +22,235 @@ Para RAG (y también para agentes GPT), **un texto limpio, continuo y bien norma
 
 ## 2. Objetivo del proyecto
 
-Construir una **herramienta abierta y reutilizable** que permita:
+Construir una herramienta **robusta, escalable y extensible** para:
 
-1. Ingerir PDFs heterogéneos (texto o imagen).
-2. Extraer su contenido de forma confiable.
-3. Aplicar un proceso de limpieza y normalización *quirúrgico*.
-4. Generar salidas listas para indexación (txt / md / jsonl).
+1. Ingerir PDFs heterogéneos.
+2. Detectar el mejor método de extracción por página (texto/OCR).
+3. Extraer texto + tablas + (opcional) figuras.
+4. Aplicar limpieza/normalización **quirúrgica** sin romper el significado.
+5. Producir salidas listas para indexación (txt/md/jsonl) con metadatos.
 
-El foco **no** es entrenar modelos ni indexar directamente, sino entregar **texto de alta calidad**, optimizado para agentes.
+Este repositorio puede ser abierto (open-source) mientras:
 
----
-
-## 3. Decisiones de diseño clave
-
-### 3.1 Filosofía del pipeline
-
-* Fases claras y desacopladas.
-* Cada fase debe producir artefactos intermedios verificables.
-* Fallbacks simples en lugar de heurísticas frágiles.
-
-### 3.2 Repositorio abierto, datos privados
-
-Se manejará mediante:
-
-* `.gitignore` estricto (`outputs/`, `workspace/`, `input_pdfs/`).
-* El repo contiene solo:
-
-  * código
-  * documentación
-  * ejemplos sintéticos
+* **inputs/outputs** permanezcan locales (via `.gitignore`)
+* se documenten pipelines y configuraciones sin exponer datos
 
 ---
 
-## 4. Librerías seleccionadas 
+## 3. Principios de diseño
 
-### Núcleo del pipeline (selección final)
+### 3.1 Diseño por etapas y artefactos (Data Pipeline)
 
-#### 1. OCRmyPDF
+* Pipeline **de extremo a extremo**, pero con etapas pequeñas e independientes.
+* Cada etapa:
 
-* Rol: normalización inicial de PDFs.
-* Función:
+  * recibe un artefacto de entrada bien definido
+  * produce un artefacto de salida validable
+  * registra métricas/logs
 
-  * Detectar si un PDF necesita OCR.
-  * Aplicar OCR solo cuando es necesario.
-  * Generar PDFs con capa de texto uniforme.
-* Ventaja clave: evita reimplementar OCR y reduce errores.
+### 3.2 Patrón plugin/strategy (Extensibilidad)
 
-#### 2. pdfplumber
+* OCR, extracción de tablas, extracción de texto y normalización se modelan como **estrategias** intercambiables.
+* Un documento puede usar varias estrategias por página (híbrido).
 
-* Rol: extracción de texto con conciencia de layout.
-* Función:
+### 3.3 Robustez operativa
 
-  * Extraer texto por página y por regiones.
-  * Permitir heurísticas para unir líneas correctamente.
-* Ventaja clave: control fino sin usar DL.
-
-#### 3. tabula-py **(principal para tablas)**
-
-* Rol: extracción estructurada de tablas.
-* Función:
-
-  * Convertir tablas PDF a DataFrames / CSV / JSON.
-* Ventaja clave:
-
-  * Estable, probado, CPU-friendly.
-  * Suficiente para la mayoría de manuales técnicos.
-
-> Alternativa considerada pero no prioritaria: Camelot (útil, pero se evita duplicar dependencias al inicio).
-
-#### 4. textacy (+ spaCy)
-
-* Rol: normalización lingüística.
-* Función:
-
-  * Re-sentencización.
-  * Validación de párrafos.
-  * Apoyo para chunking semántico.
-* Ventaja clave: mejora continuidad semántica tras limpieza.
+* Configuración centralizada (YAML/TOML).
+* Logging estructurado (JSON opcional), trazabilidad por `doc_id`.
+* Reintentos controlados + aislamiento de fallas (un PDF fallido no tira todo el batch).
 
 ---
 
-## 5. Pipeline conceptual inicial
+## 4. Stack de librerías (selección robusta)
 
-### Fase 0 — Ingesta
+### Core (estable, CPU-friendly)
 
-* Carpeta `input_pdfs/` (local, ignorada por git).
-* Lectura de PDFs.
-* Extracción de metadatos básicos (nombre, páginas).
+* **OCRmyPDF**: normaliza PDFs y agrega capa de texto a escaneados.
+* **pdfplumber**: extracción fina con awareness de layout.
+* **tabula-py**: extracción de tablas (Java/Tabula) con buenos resultados en PDFs típicos.
+* **textacy + spaCy**: segmentación y soporte NLP para normalización/validación.
+* **ftfy**: reparación de problemas Unicode frecuentes.
 
----
+### Opcionales (plugins, no obligatorios)
 
-### Fase 1 — Normalización del PDF
-
-**Herramienta**: OCRmyPDF
-
-* Detectar si el PDF tiene capa de texto útil.
-* Si no la tiene → aplicar OCR.
-* Salida:
-
-  * PDF normalizado con capa de texto consistente.
-
-Objetivo: que todos los PDFs se comporten igual aguas abajo.
+* **Camelot**: fallback para tablas cuando Tabula falla (activar bajo feature-flag).
+* **pdffigures2**: extracción de figuras/captions como “plus” (cuando aplique).
+* **docTR** o servicios cloud OCR: OCR avanzado (cuando el entorno lo permita).
 
 ---
 
-### Fase 2 — Extracción de contenido
+## 5. Pipeline optimizado extremo a extremo
+
+### Etapa A — Ingesta y registro
+
+**Entrada**: PDF(s) en `input_pdfs/` (local, gitignored)
+
+1. Generar `doc_id` (hash) por PDF.
+2. Registrar metadatos (páginas, tamaño, nombre, timestamps).
+3. Crear carpeta de trabajo por documento.
+
+**Salida**: `workspace/<doc_id>/manifest.json`
+
+---
+
+### Etapa B — Diagnóstico y enrutamiento (router por página)
+
+1. Detectar por página:
+
+   * ¿hay texto suficiente?
+   * ¿parece escaneo/imagen?
+   * ¿hay señales de tablas?
+2. Definir plan de ejecución por página:
+
+   * `TEXT_EXTRACT`
+   * `OCR`
+   * `TABLE_EXTRACT`
+   * `FIGURE_EXTRACT` (opcional)
+
+**Salida**: `workspace/<doc_id>/plan.json`
+
+---
+
+### Etapa C — Normalización PDF (OCR si aplica)
+
+* Ejecutar OCRmyPDF solo cuando sea necesario (o modo “estandarizar todo”, configurable).
+
+**Salida**:
+
+* `workspace/<doc_id>/normalized.pdf`
+* métricas OCR (si disponibles)
+
+---
+
+### Etapa D — Extracción (texto/tablas/figuras)
 
 #### Texto
 
-* Extraer texto por página con pdfplumber.
-* Mantener orden lógico de lectura.
-* Preservar saltos de párrafo (no unir todo todavía).
+* Extraer por página con pdfplumber.
+* Extraer también “tokens” por bloques/bounding boxes cuando sea útil (para reconstruir orden).
+
+**Salida**: `workspace/<doc_id>/raw_text_pages.jsonl` (1 línea = 1 página)
 
 #### Tablas
 
-* Detectar páginas con tablas.
-* Usar tabula-py para extraerlas.
-* Guardar tablas como:
+* Usar tabula-py para páginas detectadas.
+* Fallback opcional: Camelot.
 
-  * CSV / JSON
-  * Referenciadas por página.
+**Salida**:
 
----
+* `workspace/<doc_id>/tables/` (csv/json)
+* `workspace/<doc_id>/tables_index.json`
 
-### Fase 3 — Limpieza y normalización
+#### Figuras (opcional)
 
-Procesos aplicados:
+* Extraer con pdffigures2 (si se activa el plugin).
 
-* Normalización Unicode.
-* Eliminación de encabezados y pies repetidos.
-* Eliminación de números de página.
-* De-hyphenation (unir palabras cortadas por salto de línea).
-* Unión de líneas que pertenecen al mismo párrafo.
-* Normalización de espacios y saltos.
+**Salida**:
 
-Resultado: **texto continuo y legible**, no solo extraído.
+* `workspace/<doc_id>/figures/`
+* `workspace/<doc_id>/figures_index.json`
 
 ---
 
-### Fase 4 — Normalización lingüística
+### Etapa E — Limpieza y normalización
 
-**Herramienta**: textacy / spaCy
+Aplicar transformaciones en un orden controlado:
 
-* Re-sentencizar texto.
-* Detectar párrafos inconsistentes.
-* Preparar texto para chunking.
+1. Normalización Unicode (ftfy + unicodedata).
+2. Eliminación de headers/footers repetidos (por frecuencia + posición).
+3. Eliminación de números de página.
+4. De-hyphenation (unir palabras cortadas).
+5. Unión de líneas a párrafos (heurística: puntuación, minúscula/mayúscula, indentación, viudas/huérfanas).
+6. Normalización de espacios y saltos de línea.
+
+**Salida**:
+
+* `workspace/<doc_id>/clean_text.txt`
+* `workspace/<doc_id>/clean_text_pages.jsonl` (para trazabilidad)
 
 ---
 
-### Fase 5 — Salidas
+### Etapa F — NLP y segmentación
 
-Salidas finales (todas ignoradas por git):
+* textacy/spaCy para re-sentencización.
+* Identificación de títulos/secciones (heurísticas basadas en mayúsculas, numeración, patrones).
 
-* `outputs/text/` → texto completo por documento (`.txt`).
-* `outputs/md/` → versión Markdown (opcional).
-* `outputs/tables/` → tablas estructuradas (`.csv` / `.json`).
-* `outputs/jsonl/` → chunks listos para RAG.
+**Salida**:
+
+* `workspace/<doc_id>/structured.md` (opcional)
+* `workspace/<doc_id>/sections.json`
+
+---
+
+### Etapa G — Chunking y export para agentes
+
+* Chunking por sección + tamaño (tokens/char) con overlap.
+* Exportar JSONL con metadatos:
+
+  * doc_id, source_filename
+  * páginas origen
+  * extraction_method por página
+  * flags (tables_present, ocr_used)
+
+**Salida**:
+
+* `outputs/jsonl/<doc_id>.jsonl`
+* `outputs/text/<doc_id>.txt`
+* `outputs/md/<doc_id>.md` (opcional)
+
+---
+
+### Etapa H — QA / Validación
+
+* Métricas por documento:
+
+  * chars/page
+  * ratio de líneas unidas
+  * páginas vacías
+  * tablas extraídas
+  * señales de OCR pobre (si aplica)
+
+**Salida**:
+
+* `outputs/reports/summary.csv`
+* `outputs/reports/<doc_id>.json`
+
+---
+
+## 7. Patrones de diseño aplicados
+
+* **Strategy Pattern**: OCR/Table/Figure extractors reemplazables.
+* **Registry/Plugin System**: agregar nuevos extractores sin tocar el core.
+* **Pipeline por etapas**: cada stage es idempotente (si existe output, puede skip).
+* **Data Contracts**: modelos `Document/Page/Artifact` para estandarizar entrada/salida.
+* **Feature Flags**: activar Camelot, pdffigures2, etc. sin romper instalación base.
+
+---
+
+## 8. Reglas de privacidad / gitignore (recomendación)
+
+`.gitignore` debe incluir siempre:
+
+* `input_pdfs/`
+* `workspace/`
+* `outputs/`
+* `*.pdf`
+* `*.jsonl` (si contienen texto interno)
+
+El repositorio queda seguro para compartir, mientras el procesamiento real se mantiene local.
+
+---
+
+## 9. Próximos pasos (documentación primero)
+
+1. `docs/architecture.md`: justificar decisiones (CPU-first, plugins, artefactos).
+2. `docs/cleaning_rules.md`: definir reglas de unión de líneas y de-hyphen.
+3. `docs/pipeline.md`: ejemplo de ejecución end-to-end, con outputs.
+4. `configs/codespaces.yaml`: configuración optimizada para CPU.
+5. Definir un set mínimo de tests con PDFs sintéticos (fixtures).
+
+---
+
+**Meta**: que LimpiaTextos sea confiable, explicable y extensible.
+
+Un buen pipeline no depende de una sola función: depende de contratos, etapas pequeñas y validación constante.
