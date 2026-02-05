@@ -16,6 +16,7 @@ ArtifactType = Literal[
     "clean_text",
     "clean_text_pages",
     "sections",
+    "chunks",
     "tables_index",
     "figures_index",
     "report",

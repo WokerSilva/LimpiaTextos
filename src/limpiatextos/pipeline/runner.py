@@ -104,10 +104,18 @@ def run_document(
         extras={},
     )
 
+    # Merge stage overrides from config and caller
+    cfg_overrides = ((config.get("pipeline") or {}).get("stage_overrides") or {})
+    merged_overrides = dict(cfg_overrides)
+    if stage_overrides:
+        # stage_overrides from the caller takes precedence over config
+        for k, v in stage_overrides.items():
+            merged_overrides[k] = {**merged_overrides.get(k, {}), **(v or {})}
+
     pipeline = REGISTRY.build_pipeline(
         include=include_stages,
         exclude=exclude_stages,
-        overrides=stage_overrides,
+        overrides=merged_overrides,
     )
 
     executed: List[str] = []

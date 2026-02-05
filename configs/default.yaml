@@ -1,0 +1,4 @@
+pipeline:
+  stage_overrides:
+    chunk:
+      enabled: false
