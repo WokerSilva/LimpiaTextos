@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Protocol, Sequence
 
-from src.limpiatextos.core.models import ArtifactType, Document
+from limpiatextos.core.models import ArtifactType, Document
 
 
 @dataclass(frozen=True)

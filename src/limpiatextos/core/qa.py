@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from src.limpiatextos.core.errors import ConfigError
+from limpiatextos.core.errors import ConfigError
 
 
 @dataclass(frozen=True)

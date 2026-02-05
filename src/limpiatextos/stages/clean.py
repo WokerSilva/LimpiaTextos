@@ -7,10 +7,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
 
-from src.limpiatextos.core.models import Artifact, ArtifactType, Document
-from src.limpiatextos.pipeline.registry import stage
-from src.limpiatextos.pipeline.stages import StageContext
-from src.limpiatextos.core import logging as metrics
+from limpiatextos.core.models import Artifact, ArtifactType, Document
+from limpiatextos.pipeline.registry import stage
+from limpiatextos.pipeline.stages import StageContext
+from limpiatextos.core import logging as metrics
 
 
 _RAW_PATH = "raw_text_pages.jsonl"

@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Sequence
 
-from src.limpiatextos.pipeline.stages import Stage, StageSpec
+from limpiatextos.pipeline.stages import Stage, StageSpec
 
 
 class StageRegistry:

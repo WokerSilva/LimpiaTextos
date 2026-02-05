@@ -7,12 +7,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
-from src.limpiatextos.core.models import Document
-from src.limpiatextos.pipeline.registry import REGISTRY
-from src.limpiatextos.pipeline.stages import StageContext, can_skip_stage, ensure_workspace_layout
+from limpiatextos.core.models import Document
+from limpiatextos.pipeline.registry import REGISTRY
+from limpiatextos.pipeline.stages import StageContext, can_skip_stage, ensure_workspace_layout
 
 # metrics/logging (stubs)
-from src.limpiatextos.core import logging as metrics
+from limpiatextos.core import logging as metrics
 
 
 @dataclass
@@ -79,6 +79,7 @@ def run_document(
     """
     started_at = time.time()
 
+    import limpiatextos.stages  # noqa: F401
     config = _resolve_config(configs_dir, profile)
     doc = Document.from_source(source_pdf, workspace_root)
     doc.ensure_workspace()
