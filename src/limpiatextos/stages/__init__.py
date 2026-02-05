@@ -11,3 +11,4 @@ from . import nlp  # noqa: F401
 from . import chunk  # noqa: F401  # si lo mantienes (aunque deshabilitado)
 from . import export  # noqa: F401
 from . import validate  # noqa: F401
+from . import agent_preclean_pages  # noqa: F401

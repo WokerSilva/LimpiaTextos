@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 from typing import List
+import json
 
 import yaml
 
@@ -15,6 +16,64 @@ from limpiatextos.strategies.agent_corpus.artifacts import (
 
 
 class AgentCorpusRunner:
+    def _render_footer_once(self, doc_id: str) -> str:
+        meta_path = Path("workspace") / doc_id / "agent" / "meta.json"
+        if not meta_path.exists():
+            return ""
+
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+
+            if not meta.get("footer_detected"):
+                return ""
+
+            lines = []
+            if meta.get("doc_code"):
+                lines.append(f"- **Código:** {meta['doc_code']}")
+            if meta.get("version"):
+                lines.append(f"- **Versión:** {meta['version']}")
+            if meta.get("raw_date"):
+                lines.append(f"- **Fecha:** {meta['raw_date']}")
+            if meta.get("classification"):
+                lines.append(f"- **Clasificación:** {meta['classification']}")
+
+            if not lines:
+                return ""
+
+            return (
+                "\n\n---\n\n"
+                "### ℹ️ Información del documento\n\n"
+                + "\n".join(lines)
+                + "\n"
+            )
+
+    def _render_md_from_agent_pages(self, doc_id: str) -> str:
+        """
+        Renderiza un MD simple usando SOLO agent/pages_clean.jsonl
+        (sin portada, sin índice, sin pie).
+        """
+        agent_pages = (
+            Path("workspace")
+            / doc_id
+            / "agent"
+            / "pages_clean.jsonl"
+        )
+
+        if not agent_pages.exists():
+            raise FileNotFoundError(f"No existe pages_clean.jsonl para {doc_id}")
+
+        parts = []
+
+        with agent_pages.open("r", encoding="utf-8") as f:
+            for line in f:
+                obj = json.loads(line)
+                text = (obj.get("text") or "").strip()
+                if not text:
+                    continue
+                parts.append(text)
+
+        # separador simple entre páginas (temporal)
+        return "\n\n".join(parts)
+
     def __init__(
         self,
         batch_dir: Path,
@@ -55,8 +114,8 @@ class AgentCorpusRunner:
         for idx, pdf_path in enumerate(pdfs, start=1):
             print(f"[{idx}/{total}] Procesando {pdf_path.name} ... ", end="")
 
-            try:
 
+            try:
                 run_result = run_document(
                     source_pdf=str(pdf_path),
                     profile="default",  # luego lo conectamos a pipeline_spec.yaml
@@ -65,20 +124,11 @@ class AgentCorpusRunner:
 
                 doc_id = run_result.doc_id
 
-                md_path = (
-                    Path("outputs")
-                    / "md"
-                    / f"{doc_id}.md"
-                )
-
-                if not md_path.exists():
-                    raise RuntimeError(f"MD no generado para doc_id={doc_id}")
-
+                md_body = self._render_md_from_agent_pages(doc_id)
+                md_footer = self._render_footer_once(doc_id)
+                md_text = md_body + md_footer
                 target_md = self.md_output_dir / f"{doc_id}.md"
-                target_md.write_text(
-                    md_path.read_text(encoding="utf-8"),
-                    encoding="utf-8",
-                )
+                target_md.write_text(md_text, encoding="utf-8")
 
                 metadata = AgentDocumentMetadata(
                     doc_id=doc_id,

@@ -3,7 +3,8 @@ def handle_agent_corpus(args):
     batch_dir = Path(args.batch_dir).resolve()
 
     if not batch_dir.exists():
-        raise SystemExit(f"[ERROR] Batch no existe: {batch_dir}")
+        print(f"[ERROR] Batch no existe: {batch_dir}")
+        return 1
 
     outputs_dir = Path("outputs/agent_corpus").resolve()
 
@@ -13,6 +14,7 @@ def handle_agent_corpus(args):
     )
 
     runner.run()
+    return 0
 # src/limpiatextos/cli.py
 
 import argparse

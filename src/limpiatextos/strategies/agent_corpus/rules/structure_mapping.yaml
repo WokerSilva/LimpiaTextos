@@ -1,0 +1,210 @@
+version: "1.0"
+strategy: "agent_corpus"
+
+# --------------------------------------------------
+# 1) Secciones esperadas y taxonomía
+# --------------------------------------------------
+sections:
+
+  portada:
+    cardinality: 1
+    required: true
+    source_pages: first
+    include_in_md: false
+    extract_metadata: true
+    fields:
+      - doc_title
+      - doc_subtitle
+      - doc_type
+      - version
+      - publication_date
+      - raw_date
+      - doc_code
+      - owner_area
+      - classification
+
+  indice_contenido:
+    cardinality: "0..1"
+    required_if_exists: true
+    detect_by:
+      title_regex:
+        - "^contenido$"
+        - "^índice$"
+        - "^tabla de contenido$"
+    include_in_md: false
+    purpose: "structural_validation"
+
+  pie_pagina:
+    cardinality: "1..N"
+    required: true
+    detect_by:
+      regex: >
+        ^CÓDIGO:\s*(?P<doc_code>[\w\.\-]+)\s+
+        FECHA:\s*(?P<raw_date>[\w\/\-]+)\s+
+        VERSIÓN:\s*(?P<version>[\w\.\-]+)\s+
+        (?P<classification>INTERNO|EXTERNO|CONFIDENCIAL)?\s+
+        PÁGINA\b.*$
+    action:
+      capture_once: true
+      remove_globally: true
+    include_in_md: false
+    extract_metadata:
+      - doc_code
+      - raw_date
+      - version
+      - classification
+
+  firmas:
+    cardinality: "0..N"
+    required_if_exists: true
+    detect_by:
+      title_regex:
+        - "^firmas"
+        - "^firmas electrónicas"
+        - "^aprobaciones"
+        - "^responsables"
+    parsing:
+      mode: "block"
+      block_rules:
+        must_contain_action_verb: true
+        action_verbs:
+          - Aprueba
+          - Aprobador
+          - Autoriza
+          - Enterado
+          - Revisa
+          - Valida
+          - Elabora
+    include_in_md: true
+    render_as: "table"
+    table_schema:
+      columns:
+        - Nombre
+        - Cargo
+        - Acción
+        - Evidencia
+
+  bitacora_cambios:
+    cardinality: "0..N"
+    required_if_exists: true
+    detect_by:
+      title_regex:
+        - "^bitácora de cambios"
+        - "^control de cambios"
+        - "^historial de versiones"
+    parsing:
+      type: "table"
+      canonical_columns:
+        - No.
+        - Versión
+        - Fecha
+        - Área responsable
+        - Descripción
+      allow_extra_columns: true
+      multi_page: true
+    include_in_md: true
+    render_as: "table"
+    force_table: true
+
+  cuerpo_normativo:
+    cardinality: "1..N"
+    required: true
+    detect_by:
+      heading_patterns:
+        - '^\d+(\.\d+)*\.'
+        - '^[IVXLC]+\.'
+        - '^[A-Z]\)'
+    parsing:
+      preserve_hierarchy: true
+      normalize_lists: true
+      repair_ocr_numbering: true
+    include_in_md: true
+    render_as: "structured_md"
+
+  tablas_adicionales:
+    cardinality: "0..N"
+    required_if_exists: true
+    detect_by:
+      keywords:
+        - Responsabilidades
+        - Indicadores
+        - Riesgos
+        - Controles
+        - Activos de información
+    parsing:
+      simple_table_to_md: true
+      complex_table_fallback: "structured_list"
+    include_in_md: true
+
+  imagenes:
+    cardinality: "0..N"
+    required_if_exists: true
+    detect_by:
+      object_type: "image"
+    parsing:
+      ocr_if_legible: true
+      mark_decorative_if_no_text: true
+    include_in_md: true
+    render_as: "image_placeholder"
+
+  diagramas_flujo:
+    cardinality: "0..N"
+    required_if_exists: true
+    detect_by:
+      keywords:
+        - diagrama
+        - flujo
+        - swimlane
+    include_in_md: true
+    render_as: "diagram_card"
+
+  anexos_referencias:
+    cardinality: "0..N"
+    required: false
+    detect_by:
+      title_regex:
+        - "^anexos"
+        - "^referencias"
+    include_in_md: true
+    render_as: "section"
+
+# --------------------------------------------------
+# 2) Reglas transversales de limpieza
+# --------------------------------------------------
+global_cleaning_rules:
+  remove_page_numbers: true
+  remove_repeated_headers: true
+  remove_repeated_footers: true
+  normalize_bullets: true
+  fix_hyphenated_words: true
+  preserve_accents: true
+
+# --------------------------------------------------
+# 3) Normalización de fechas y códigos
+# --------------------------------------------------
+normalization:
+  date:
+    output_format: "YYYY-MM-DD"
+    preserve_raw: true
+  doc_code:
+    preserve_format: true
+    trim_only: true
+
+# --------------------------------------------------
+# 4) Validaciones estructurales (QA)
+# --------------------------------------------------
+validation:
+  index_coverage_min_ratio: 0.9
+  require_bitacora_if_detected: true
+  require_signatures_if_detected: true
+  signatures_min_count: 1
+  footer_must_not_appear_in_md: true
+
+# --------------------------------------------------
+# 5) Señales para corpus_index.json
+# --------------------------------------------------
+signals:
+  has_index: "indice_contenido.detected"
+  has_change_log: "bitacora_cambios.detected"
+  has_images: "imagenes.detected"
+  has_flow_diagrams: "diagramas_flujo.detected"
