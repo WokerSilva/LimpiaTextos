@@ -71,6 +71,10 @@ class AgentCorpusRunner:
                     continue
                 parts.append(text)
 
+        tables_md = self._render_tables_md(doc_id)
+        if tables_md:
+            parts.insert(0, tables_md)
+
         # separador simple entre páginas (temporal)
         return "\n\n".join(parts)
 
@@ -94,6 +98,47 @@ class AgentCorpusRunner:
         self.md_output_dir.mkdir(parents=True, exist_ok=True)
 
         self.batch_config = self._load_batch_config()
+
+    def _render_tables_md(self, doc_id: str) -> str:
+        tables_path = Path("workspace") / doc_id / "agent" / "tables.json"
+        if not tables_path.exists():
+            return ""
+
+        tables = json.loads(tables_path.read_text(encoding="utf-8") or "[]")
+        if not tables:
+            return ""
+
+        out = []
+        out.append("## Tablas detectadas\n")
+
+        for t in tables:
+            title = t.get("section_title") or "Tabla"
+            cols = t.get("columns") or []
+            rows = t.get("rows") or []
+
+            out.append(f"### {title}\n")
+
+            # Si no hay columnas, render fallback
+            if not cols:
+                for r in rows:
+                    out.append(f"- {r[0] if r else ''}")
+                out.append("")
+                continue
+
+            # Tabla markdown
+            out.append("| " + " | ".join(cols) + " |")
+            out.append("|" + "|".join(["---"] * len(cols)) + "|")
+
+            for r in rows:
+                # asegurar len
+                r = (r + [""] * len(cols))[: len(cols)]
+                # escapar pipes
+                r = [str(x).replace("|", "\\|") for x in r]
+                out.append("| " + " | ".join(r) + " |")
+
+            out.append("")
+
+        return "\n".join(out)
 
     # -------------------------
     # Public API
@@ -124,8 +169,8 @@ class AgentCorpusRunner:
 
                 doc_id = run_result.doc_id
 
-                md_body = self._render_md_from_agent_pages(doc_id)
-                md_footer = self._render_footer_once(doc_id)
+                md_body = self._render_md_from_agent_pages(doc_id) or ""
+                md_footer = self._render_footer_once(doc_id) or ""
                 md_text = md_body + md_footer
                 target_md = self.md_output_dir / f"{doc_id}.md"
                 target_md.write_text(md_text, encoding="utf-8")
@@ -148,6 +193,8 @@ class AgentCorpusRunner:
             except Exception as e:
                 failed += 1
                 print(f"FAIL ({e})")
+                import traceback
+                traceback.print_exc()
 
         # Generar corpus final
         corpus_md_path = self._generate_corpus_md(documents)
