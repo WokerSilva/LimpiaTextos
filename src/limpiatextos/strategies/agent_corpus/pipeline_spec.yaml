@@ -1,0 +1,77 @@
+strategy:
+  name: agent_corpus
+  version: "0.1.0"
+  description: >
+    Pipeline especializado para generar corpus Markdown de alta calidad
+    orientado a carga directa en agentes (ChatGPT, Gemini, Copilot),
+    sin chunking y con limpieza estructural reforzada.
+
+input:
+  type: pdf
+  mode: batch
+  expected_language: es
+  max_documents_per_batch: 200
+
+pipeline:
+  # Orden explícito de ejecución
+  stages:
+    - ingest
+    - diagnose
+    - ocr
+    - extract_text
+    - clean
+    - nlp
+    - export_md_agent
+    - validate
+
+  # Stages explícitamente deshabilitados
+  disabled_stages:
+    - chunk
+    - extract_tables
+    - extract_figures
+
+  # Reglas globales de ejecución
+  behavior:
+    fail_soft: true
+    stop_on_critical_error: false
+    reuse_workspace_if_exists: true
+
+cleaning_profile:
+  base: default
+  overrides:
+    header_footer:
+      aggressive_removal: true
+      min_page_repetition_ratio: 0.6
+
+    dehyphen:
+      enabled: true
+
+    line_join:
+      enabled: true
+      max_join_ratio_warn: 0.55
+
+structure_mapping:
+  enabled: true
+  rules_file: rules/structure_mapping.yaml
+
+md_rendering:
+  enabled: true
+  rules_file: rules/md_rendering.yaml
+  include_document_metadata_header: true
+  enforce_strict_heading_hierarchy: true
+  separator_between_documents: "=================================================="
+
+outputs:
+  per_document_md: true
+  generate_corpus_md: true
+  generate_corpus_index: true
+  generate_batch_report: true
+
+qa:
+  enabled: true
+  mode: reduced
+  fail_on:
+    - pages_empty_ratio >= 0.5
+  warn_on:
+    - line_join_ratio > 0.55
+    - headings_detected == 0

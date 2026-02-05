@@ -1,5 +1,19 @@
+from limpiatextos.strategies.agent_corpus.runner import AgentCorpusRunner
+def handle_agent_corpus(args):
+    batch_dir = Path(args.batch_dir).resolve()
+
+    if not batch_dir.exists():
+        raise SystemExit(f"[ERROR] Batch no existe: {batch_dir}")
+
+    outputs_dir = Path("outputs/agent_corpus").resolve()
+
+    runner = AgentCorpusRunner(
+        batch_dir=batch_dir,
+        outputs_dir=outputs_dir,
+    )
+
+    runner.run()
 # src/limpiatextos/cli.py
-from __future__ import annotations
 
 import argparse
 from pathlib import Path
@@ -59,6 +73,15 @@ def cmd_summary(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="limpiatextos")
     sub = p.add_subparsers(dest="cmd", required=True)
+    agent_parser = sub.add_parser(
+        "agent-corpus",
+        help="Genera un corpus Markdown para carga directa en agentes (por lote)",
+    )
+    agent_parser.add_argument(
+        "batch_dir",
+        help="Ruta al lote (ej: input_batches/lote_01)",
+    )
+    agent_parser.set_defaults(func=handle_agent_corpus)
 
     runp = sub.add_parser("run", help="Procesa un PDF y genera outputs (md/txt/jsonl/report).")
     runp.add_argument("pdf", help="Ruta al PDF (ej. input_pdfs/doc.pdf)")
