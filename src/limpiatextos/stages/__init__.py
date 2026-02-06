@@ -13,3 +13,4 @@ from . import export  # noqa: F401
 from . import validate  # noqa: F401
 from . import agent_preclean_pages  # noqa: F401
 from . import agent_detect_tables  # noqa: F401
+from . import agent_pages_clean  # noqa: F401
