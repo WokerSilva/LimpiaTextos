@@ -1,4 +1,16 @@
 from limpiatextos.strategies.agent_corpus.runner import AgentCorpusRunner
+from limpiatextos.strategies.agent_corpus.pack_agent_md import pack_md_for_agents
+def handle_agent_pack(args):
+    generated = pack_md_for_agents(
+        lote_id=args.lote_id,
+        max_size_mb=args.max_mb,
+    )
+
+    print(f"\n✔ Archivos generados: {len(generated)}")
+    for p in generated:
+        print(f"  - {p}")
+
+    return 0
 def handle_agent_corpus(args):
     batch_dir = Path(args.batch_dir).resolve()
 
@@ -105,7 +117,23 @@ def build_parser() -> argparse.ArgumentParser:
     sump.add_argument("--configs", default="configs", help="Directorio configs/")
     sump.set_defaults(func=cmd_summary)
 
+    parser_pack = sub.add_parser(
+        "agent-pack",
+        help="Empaqueta archivos MD para subir a agentes (por tamaño máximo).",
+    )
+    parser_pack.add_argument(
+        "lote_id",
+        help="Lote a empaquetar (ej. lote_04)",
+    )
+    parser_pack.add_argument(
+        "--max-mb",
+        type=int,
+        default=20,
+        help="Tamaño máximo por archivo (MB)",
+    )
+    parser_pack.set_defaults(func=handle_agent_pack)
     return p
+
 
 
 def main() -> int:
