@@ -399,3 +399,6 @@ history | tail -n 200
 ````
 
 (o el rango que quieras, por ejemplo de la sesión actual). Con eso te lo dejo literal, **comando por comando**, y lo clasifico por etapa (instalación, ejecución, QA, debug, etc.) sin inventar ninguno.
+
+
+ /workspaces/LimpiaTextos/.venv/bin/python -m pip install -e .

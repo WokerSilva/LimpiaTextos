@@ -1,9 +1,18 @@
 from limpiatextos.strategies.agent_corpus.runner import AgentCorpusRunner
 from limpiatextos.strategies.agent_corpus.pack_agent_md import pack_md_for_agents
 def handle_agent_pack(args):
+    from limpiatextos.strategies.agent_corpus.pack_agent_md import pack_md_for_agents
+
+    if args.max_mb is not None:
+        max_mb = float(args.max_mb)
+    elif args.max_kb is not None:
+        max_mb = float(args.max_kb) / 1024.0
+    else:
+        max_mb = 20.0  # default
+
     generated = pack_md_for_agents(
         lote_id=args.lote_id,
-        max_size_mb=args.max_mb,
+        max_size_mb=max_mb,
     )
 
     print(f"\n✔ Archivos generados: {len(generated)}")
@@ -127,9 +136,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser_pack.add_argument(
         "--max-mb",
-        type=int,
-        default=20,
-        help="Tamaño máximo por archivo (MB)",
+        type=float,
+        default=None,
+        help="Tamaño máximo por archivo en MB (acepta decimales, ej: 0.5)",
+    )
+    parser_pack.add_argument(
+        "--max-kb",
+        type=float,
+        default=None,
+        help="Tamaño máximo por archivo en KB",
     )
     parser_pack.set_defaults(func=handle_agent_pack)
     return p
